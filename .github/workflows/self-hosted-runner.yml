@@ -3,7 +3,7 @@ name: Self-hosted runner — Run MyWhoosh2Garmin
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: "15 22 * * *"
+    - cron: "00 22 * * *"
 
 jobs:
   run-on-self-hosted:
