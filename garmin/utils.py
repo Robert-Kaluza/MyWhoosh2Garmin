@@ -158,7 +158,7 @@ def list_virtual_cycling_activities(
                 start_time = None
             start_times.append(start_time)
             for k, v in activity.items():
-                logger.debug(k, v)
+                logger.debug("%s: %s", k, v)
             logger.debug(
                 f"Found virtual cycling activity: {activity['activityName']} at {activity.get('startTimeLocal', '')} with elapsed time {activity.get('elapsedTime', '')}."  # noqa: E501
             )
