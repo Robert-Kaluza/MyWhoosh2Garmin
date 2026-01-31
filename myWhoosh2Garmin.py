@@ -16,7 +16,7 @@ RAW_FIT_FILE_PATH = SCRIPT_DIR / "data" / "raw"
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler(LOG_FILE_PATH), logging.StreamHandler()],
+    handlers=[logging.FileHandler(log_file_path), logging.StreamHandler()],
 )
 
 logger = logging.getLogger(__name__)
