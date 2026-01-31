@@ -1,17 +1,14 @@
 import logging
 from pathlib import Path
 
-from fit_utils.fit_builder import MyWhooshFitBuilder
-from garmin.utils import (
-    authenticate_to_garmin,
-    list_virtual_cycling_activities,
-    upload_fit_file_to_garmin,
-)
-from strava.client import StravaClientBuilder
-
 SCRIPT_DIR = Path(__file__).resolve().parent
 log_file_path = SCRIPT_DIR / "myWhoosh2Garmin.log"
 RAW_FIT_FILE_PATH = SCRIPT_DIR / "data" / "raw"
+
+# -------------------------
+# Logging FIRST
+# -------------------------
+
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -21,6 +18,15 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+
+from fit_utils.fit_builder import MyWhooshFitBuilder
+from garmin.utils import (
+    authenticate_to_garmin,
+    list_virtual_cycling_activities,
+    upload_fit_file_to_garmin,
+)
+from strava.client import StravaClientBuilder
 
 
 def main():
