@@ -21,6 +21,13 @@ from requests import Session
 
 logger = logging.getLogger(__name__)
 
+# Attach the handler from the main logger (which is __main__ when run directly)
+main_logger = logging.getLogger("__main__")
+if main_logger.handlers:
+    for handler in main_logger.handlers:
+        logger.addHandler(handler)
+    logger.setLevel(main_logger.level)
+
 
 class StravaSettings(BaseSettings):
     """Configuration settings for Strava API client."""
