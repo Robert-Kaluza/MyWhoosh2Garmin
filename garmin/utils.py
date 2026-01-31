@@ -10,7 +10,7 @@ from garth.exc import GarthException, GarthHTTPError
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 
 class GarminSettings(BaseSettings):
