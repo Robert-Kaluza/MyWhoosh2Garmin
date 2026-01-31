@@ -12,12 +12,14 @@ from strava.client import StravaClientBuilder
 SCRIPT_DIR = Path(__file__).resolve().parent
 log_file_path = SCRIPT_DIR / "myWhoosh2Garmin.log"
 RAW_FIT_FILE_PATH = SCRIPT_DIR / "data" / "raw"
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler(LOG_FILE_PATH), logging.StreamHandler()],
+)
+
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-file_handler = logging.FileHandler(log_file_path)
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
 
 
 def main():

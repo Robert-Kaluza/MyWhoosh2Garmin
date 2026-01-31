@@ -135,8 +135,6 @@ def list_virtual_cycling_activities(
     last_n_days: int = 30,
 ) -> Tuple[List[str], List[datetime]]:
     """Return two lists: activity names and start times of virtual cycling activities from Garmin Connect."""  # noqa: E501
-    logger = logging.getLogger("__main__")
-
     logger.info(
         f"Retrieving virtual cycling activities from the last {last_n_days} days..."
     )
