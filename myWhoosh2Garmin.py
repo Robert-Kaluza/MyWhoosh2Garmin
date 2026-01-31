@@ -36,6 +36,8 @@ def main():
 
     strava_retrieved_activities = client.get_filtered_activities()
     names, start_times = list_virtual_cycling_activities(last_n_days=7)
+    logger.debug(f"Found names: {names}")
+    logger.debug(f"Found start_times: {start_times}")
 
     def strip_timezone(dt):
         if dt.tzinfo is not None:
