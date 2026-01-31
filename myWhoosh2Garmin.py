@@ -19,13 +19,11 @@ RAW_FIT_FILE_PATH = SCRIPT_DIR / "data" / "raw"
 logger = logging.getLogger()  # root logger
 logger.setLevel(logging.DEBUG)
 
-# File handler (musimy użyć str(LOG_FILE_PATH))
-file_handler = logging.FileHandler(str(LOG_FILE_PATH), mode="a")
+file_handler = logging.FileHandler(str(log_file_path), mode="a")
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
-# Console output (opcjonalnie)
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
