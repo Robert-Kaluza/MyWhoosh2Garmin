@@ -10,7 +10,7 @@ from garth.exc import GarthException, GarthHTTPError
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-logger = logging.getLogger()
+logger = logging.getLogger("myWhoosh2Garmin")
 
 
 class GarminSettings(BaseSettings):
