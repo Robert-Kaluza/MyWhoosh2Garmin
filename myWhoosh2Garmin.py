@@ -13,13 +13,22 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 log_file_path = SCRIPT_DIR / "myWhoosh2Garmin.log"
 RAW_FIT_FILE_PATH = SCRIPT_DIR / "data" / "raw"
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler(str(log_file_path)), logging.StreamHandler()],
-)
+# -----------------------------
+# ROOT LOGGER
+# -----------------------------
+logger = logging.getLogger()  # root logger
+logger.setLevel(logging.DEBUG)
 
-logger = logging.getLogger(__name__)
+# File handler (musimy użyć str(LOG_FILE_PATH))
+file_handler = logging.FileHandler(str(LOG_FILE_PATH), mode="a")
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
+# Console output (opcjonalnie)
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 
 def main():
