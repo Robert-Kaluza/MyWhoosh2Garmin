@@ -15,6 +15,7 @@ logging.basicConfig(
     handlers=[
         logging.FileHandler(log_file_path),
     ],
+    force=True,
 )
 
 logger = logging.getLogger(__name__)
