@@ -5,10 +5,6 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 log_file_path = SCRIPT_DIR / "myWhoosh2Garmin.log"
 RAW_FIT_FILE_PATH = SCRIPT_DIR / "data" / "raw"
 
-# -------------------------
-# Logging FIRST
-# -------------------------
-
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
