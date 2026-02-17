@@ -1,8 +1,11 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Union
 
+from pydantic import BaseModel, ConfigDict, Field, model_validator, computed_field
+# Note: Ensure you have your specific FIT library installed
+# (e.g., fit-tool or similar names used in your environment)
 from fit_tool.fit_file_builder import FitFileBuilder
 from fit_tool.profile.messages.activity_message import ActivityMessage
 from fit_tool.profile.messages.event_message import EventMessage
@@ -15,13 +18,12 @@ from fit_tool.profile.profile_type import (
     Event,
     EventType,
     FileType,
-    GarminProduct,
     Intensity,
     Manufacturer,
     Sport,
     SubSport,
+    GarminProduct,
 )
-from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 
 class ActivityData(BaseModel):
@@ -53,8 +55,9 @@ class ActivityData(BaseModel):
     max_watts: int
     weighted_average_watts: int
     kilojoules: float
-    average_heartrate: float
-    max_heartrate: float
+    # HEART RATE FIX: Make these optional
+    average_heartrate: Optional[float] = None
+    max_heartrate: Optional[float] = None
     calories: float
 
     # From streams
@@ -63,41 +66,40 @@ class ActivityData(BaseModel):
     watts: List[int]
     cadence: List[int]
     velocity_smooth: List[float]
-    heartrate: List[int]
     time: List[int]
-    heartrates: List[int]
     distance: List[float]
-    grade_smooth: List[float] | None
-    altitude: List[float] | None
+    # HEART RATE FIX: Default to empty lists
+    heartrate: List[int] = Field(default_factory=list)
+    heartrates: List[int] = Field(default_factory=list)
+    grade_smooth: Optional[List[float]] = None
+    altitude: Optional[List[float]] = None
 
     @model_validator(mode="after")
     def validate_streams(self) -> "ActivityData":
         """Validate that all stream lists have the same length and records exist."""
-        # Collect all stream attributes that are lists
-        stream_attrs = [
-            "lat",
-            "long",
-            "watts",
-            "cadence",
-            "velocity_smooth",
-            "heartrate",
-            "time",
-            "heartrates",
-            "distance",
+        # Fields that MUST exist and match in length
+        required_stream_attrs = [
+            "lat", "long", "watts", "cadence",
+            "velocity_smooth", "time", "distance"
         ]
-        # Optionally include nullable streams if present
-        if self.grade_smooth is not None:
-            stream_attrs.append("grade_smooth")
-        if self.altitude is not None:
-            stream_attrs.append("altitude")
 
-        lengths = [
-            len(getattr(self, attr))
-            for attr in stream_attrs
-            if getattr(self, attr) is not None
-        ]
-        if lengths and any(length != lengths[0] for length in lengths):
-            raise ValueError("All stream lists must have the same length.")
+        # Fields that might be empty or None
+        optional_stream_attrs = ["heartrate", "heartrates", "grade_smooth", "altitude"]
+
+        # Calculate base length from 'time'
+        base_length = len(self.time)
+
+        # Check required
+        for attr in required_stream_attrs:
+            if len(getattr(self, attr)) != base_length:
+                raise ValueError(f"Stream '{attr}' length does not match 'time' length.")
+
+        # Check optional (only if they are populated)
+        for attr in optional_stream_attrs:
+            val = getattr(self, attr)
+            if val is not None and len(val) > 0:
+                if len(val) != base_length:
+                    raise ValueError(f"Stream '{attr}' length does not match 'time' length.")
 
         return self
 
@@ -106,7 +108,7 @@ class ActivityData(BaseModel):
         return len(self.time)
 
     @property
-    def elapsed_time(self) -> int:
+    def elapsed_time_ms(self) -> int:
         """Get elapsed time in milliseconds."""
         return self.elapsed_time * 1000
 
@@ -116,13 +118,17 @@ class ActivityData(BaseModel):
         with open(json_file_path, "r") as f:
             raw_data = json.load(f)
 
-        # Extract metadata and streams
         metadata = raw_data.get("metadata", {})
         streams = raw_data.get("streams", {})
 
-        # Combine metadata fields with stream data
+        # Extract lat/long safely
+        lat_values = []
+        long_values = []
+        latlng_data = streams.get("latlng", {}).get("data", [])
+        if latlng_data:
+            lat_values, long_values = zip(*latlng_data)
+
         combined_data = {
-            # Metadata fields (activity summary)
             "strava_activity_name": metadata.get("name", ""),
             "strava_activity_id": metadata.get("id"),
             "activity_distance": metadata.get("distance"),
@@ -130,12 +136,8 @@ class ActivityData(BaseModel):
             "elapsed_time": metadata.get("elapsed_time"),
             "total_elevation_gain": metadata.get("total_elevation_gain"),
             "type": metadata.get("type"),
-            "start_date": datetime.fromisoformat(metadata.get("start_date"))
-            if metadata.get("start_date")
-            else None,
-            "start_date_local": datetime.fromisoformat(metadata.get("start_date_local"))
-            if metadata.get("start_date_local")
-            else None,
+            "start_date": datetime.fromisoformat(metadata.get("start_date")) if metadata.get("start_date") else None,
+            "start_date_local": datetime.fromisoformat(metadata.get("start_date_local")) if metadata.get("start_date_local") else None,
             "timezone": metadata.get("timezone"),
             "utc_offset": metadata.get("utc_offset"),
             "average_speed": metadata.get("average_speed"),
@@ -148,36 +150,18 @@ class ActivityData(BaseModel):
             "average_heartrate": metadata.get("average_heartrate"),
             "max_heartrate": metadata.get("max_heartrate"),
             "calories": metadata.get("calories"),
-            # Stream data (time series)
-            # Extract and separate lat/long from latlng pairs
-            "lat": [],
-            "long": [],
+            "lat": list(lat_values),
+            "long": list(long_values),
+            "watts": streams.get("watts", {}).get("data", []),
+            "cadence": streams.get("cadence", {}).get("data", []),
+            "velocity_smooth": streams.get("velocity_smooth", {}).get("data", []),
+            "time": streams.get("time", {}).get("data", []),
+            "distance": streams.get("distance", {}).get("data", []),
+            "heartrate": streams.get("heartrate", {}).get("data", []),
+            "heartrates": streams.get("heartrate", {}).get("data", []),
+            "grade_smooth": streams.get("grade_smooth", {}).get("data"),
+            "altitude": streams.get("altitude", {}).get("data"),
         }
-
-        # Stream data (time series)
-        # Extract and separate lat/long from latlng pairs
-        latlng_data = streams.get("latlng", {}).get("data", [])
-        if latlng_data:
-            lat_values, long_values = zip(*latlng_data)
-            combined_data["lat"] = list(lat_values)
-            combined_data["long"] = list(long_values)
-        else:
-            combined_data["lat"] = []
-            combined_data["long"] = []
-
-        combined_data.update(
-            {
-                "watts": streams.get("watts", {}).get("data", []),
-                "cadence": streams.get("cadence", {}).get("data", []),
-                "velocity_smooth": streams.get("velocity_smooth", {}).get("data", []),
-                "heartrate": streams.get("heartrate", {}).get("data", []),
-                "time": streams.get("time", {}).get("data", []),
-                "heartrates": streams.get("heartrate", {}).get("data", []),
-                "distance": streams.get("distance", {}).get("data", []),
-                "grade_smooth": streams.get("grade_smooth", {}).get("data"),
-                "altitude": streams.get("altitude", {}).get("data"),
-            }
-        )
 
         return cls(**combined_data)
 
@@ -244,42 +228,34 @@ class MyWhooshFitBuilder:
             # Position (lat/long en degrés)
             record.position_lat = self.activity_data.lat[i]
             record.position_long = self.activity_data.long[i]
-
-            # Heart rate
-            record.heart_rate = self.activity_data.heartrate[i]
-
-            # Cadence
-            record.cadence = self.activity_data.cadence[i]
-
-            # Distance (meters)
             record.distance = self.activity_data.distance[i]
+            record.cadence = self.activity_data.cadence[i]
+            record.power = self.activity_data.watts[i]
+            record.speed = self.activity_data.velocity_smooth[i]
 
-            # Altitude (meters) - optional
+            # HEART RATE FIX: Only add if list is not empty
+            if self.activity_data.heartrate:
+                record.heart_rate = self.activity_data.heartrate[i]
+
             if self.activity_data.altitude is not None:
                 record.altitude = self.activity_data.altitude[i]
-
-            # Power (watts)
-            record.power = self.activity_data.watts[i]
-
-            # Speed (m/s)
-            record.speed = self.activity_data.velocity_smooth[i]
 
             self.builder.add(record)
 
     def _add_lap(self):
-        """Add lap message."""
         lap = LapMessage()
-
-        lap.timestamp = (
-            self.activity_data.start_ts_miliseconds + self.activity_data.elapsed_time
-        )
+        lap.timestamp = self.activity_data.start_ts_miliseconds + self.activity_data.elapsed_time_ms
         lap.start_time = self.activity_data.start_ts_miliseconds
         lap.total_elapsed_time = self.activity_data.elapsed_time
         lap.total_timer_time = self.activity_data.elapsed_time
         lap.intensity = Intensity.ACTIVE
         lap.total_distance = self.activity_data.activity_distance
-        lap.avg_heart_rate = int(self.activity_data.average_heartrate)
-        lap.max_heart_rate = int(self.activity_data.max_heartrate)
+
+        # HEART RATE FIX: Check for None
+        if self.activity_data.average_heartrate is not None:
+            lap.avg_heart_rate = int(self.activity_data.average_heartrate)
+        if self.activity_data.max_heartrate is not None:
+            lap.max_heart_rate = int(self.activity_data.max_heartrate)
 
         lap.avg_cadence = int(self.activity_data.average_cadence)
         lap.max_cadence = int(self.activity_data.max_cadence)
@@ -306,8 +282,11 @@ class MyWhooshFitBuilder:
         session.total_timer_time = self.activity_data.elapsed_time
         session.total_distance = self.activity_data.activity_distance
 
-        session.avg_heart_rate = int(self.activity_data.average_heartrate)
-        session.max_heart_rate = int(self.activity_data.max_heartrate)
+        # HEART RATE FIX: Check for None
+        if self.activity_data.average_heartrate is not None:
+            session.avg_heart_rate = int(self.activity_data.average_heartrate)
+        if self.activity_data.max_heartrate is not None:
+            session.max_heart_rate = int(self.activity_data.max_heartrate)
 
         session.avg_cadence = int(self.activity_data.average_cadence)
         session.max_cadence = int(self.activity_data.max_cadence)
@@ -341,18 +320,12 @@ class MyWhooshFitBuilder:
     def build(self, output_path: str = None):
         """Build and write the FIT file."""
         if not output_path:
-            raise ValueError("output_path is required for build.")
+            raise ValueError("output_path is required.")
 
         # Add messages in order
         self._add_file_id()
         self._add_file_creator()
-
-        # Timer start event
-        self._add_event(
-            self.activity_data.start_ts_miliseconds, Event.TIMER, EventType.START
-        )
-
-        # Add all record points
+        self._add_event(self.activity_data.start_ts_miliseconds, Event.TIMER, EventType.START)
         self._add_records()
 
         # Add lap
@@ -379,21 +352,12 @@ class MyWhooshFitBuilder:
 
 # Example usage
 if __name__ == "__main__":
-    # # Example usage
     data_dir = Path(__file__).parent.parent / "data"
-    input_file = str(
-        data_dir / "raw" / "MyWhoosh - The Seven Gems_2025-11-13_combined.json"
-    )
-    output_file = str(
-        data_dir / "processed" / "MyWhoosh - The Seven Gems_2025-11-13_combined.fit"
-    )
+    input_file = str(data_dir / "raw" / "your_activity.json")
+    output_file = str(data_dir / "processed" / "your_activity.fit")
 
-    data = ActivityData.from_json_file(input_file)
-
-    # Create builder and generate FIT file
-    builder = MyWhooshFitBuilder(input_file)
-    builder.build(output_file)
-
-    # print("FIT file created successfully!")
-
-# What I need to retrieve from the json :
+    if Path(input_file).exists():
+        builder = MyWhooshFitBuilder(input_file)
+        builder.build(output_file)
+    else:
+        print(f"File not found: {input_file}")
